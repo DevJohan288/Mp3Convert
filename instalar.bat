@@ -41,12 +41,27 @@ REM --- 3. Entorno virtual de Python ---
 if not exist venv (
     echo Creando entorno virtual...
     python -m venv venv
+    if errorlevel 1 (
+        echo No se pudo crear el entorno virtual de Python.
+        pause
+        exit /b 1
+    )
 )
 
-call venv\Scripts\activate.bat
+if not exist "venv\Scripts\python.exe" (
+    echo No se encontro el interprete del entorno virtual.
+    pause
+    exit /b 1
+)
 
 echo Instalando dependencias (Flask, yt-dlp)...
-pip install -r requirements.txt --quiet
+"venv\Scripts\python.exe" -m pip install -r requirements.txt --quiet
+if errorlevel 1 (
+    echo No se pudieron instalar las dependencias.
+    echo Revisa tu conexion a internet e intenta ejecutar instalar.bat otra vez.
+    pause
+    exit /b 1
+)
 
 echo.
 echo ============================================
