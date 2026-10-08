@@ -1,110 +1,117 @@
 # Deck — Descargador de YouTube (MP3 / MP4)
 
-Aplicación web local, construida con Flask, para descargar audio o video de
-YouTube. Pensada para uso personal en tu propia red.
+Aplicación web local construida con Flask para consultar videos de YouTube y
+descargar su audio como MP3 o el video como MP4. También se puede usar desde
+otros dispositivos de la red local.
 
-> Úsala solo con contenido que tengas derecho a descargar (tu propio
-> contenido, música libre de derechos, licencias Creative Commons, etc.).
-> Descargar contenido con derechos de autor sin permiso puede infringir los
-> términos de YouTube y las leyes de copyright de tu país.
-
-## Arquitectura
-
-El proyecto sigue una separación por capas al estilo de una API pequeña en
-producción, en vez de meter toda la lógica en un solo archivo:
-
-```
-yt-downloader/
-├── run.py                        # Punto de entrada: arranca el servidor
-├── app/
-│   ├── __init__.py                # App factory (create_app)
-│   ├── config.py                  # Config: constantes centralizadas
-│   ├── routes.py                  # Blueprint: capa HTTP, delgada
-│   ├── services/
-│   │   ├── downloader.py          # YouTubeDownloader, YouTubeURLValidator
-│   │   ├── models.py              # TrackInfo, DownloadResult (dataclasses)
-│   │   └── exceptions.py          # Jerarquía de errores del dominio
-│   ├── templates/index.html
-│   └── static/{css,js}/
-└── tests/
-    └── test_validator.py          # Pruebas unitarias (pytest)
-```
-
-**Por qué está dividido así:**
-
-- **`app/services/downloader.py`** — Toda la interacción con `yt-dlp` vive en
-  la clase `YouTubeDownloader`. Es la única parte del proyecto que sabe cómo
-  se arma un `outtmpl`, qué opciones necesita `ffmpeg`, etc. Si mañana se
-  cambia de librería de descarga, solo se toca este archivo.
-- **`app/services/exceptions.py`** — Errores propios (`InvalidURLError`,
-  `ExtractionError`, `DownloadFailedError`) en vez de `Exception` genérica,
-  para que `routes.py` pueda decidir el código HTTP correcto sin adivinar.
-- **`app/services/models.py`** — `TrackInfo` y `DownloadResult` son
-  `dataclasses` simples: le dan forma a los datos que cruzan entre capas.
-- **`app/routes.py`** — Capa de presentación: traduce HTTP ↔ llamadas al
-  servicio. No sabe nada de `yt-dlp` ni de archivos temporales.
-- **`app/__init__.py`** — Usa el patrón *Application Factory*
-  (`create_app()`), el estándar recomendado por Flask: permite crear la app
-  con distinta configuración (por ejemplo, para tests) sin variables
-  globales.
+> Úsala solo con contenido que tengas derecho a descargar, como contenido
+> propio o con una licencia que lo permita. Descargar contenido protegido sin
+> autorización puede infringir los términos de YouTube y las leyes de tu país.
 
 ## Requisitos
 
-1. **Python 3.9+**
-2. **ffmpeg** — necesario para convertir a MP3 y unir audio/video en MP4.
-   - **Windows**: `winget install ffmpeg` (o `instalar.bat` ya lo hace por ti)
-   - **macOS**: `brew install ffmpeg`
-   - **Linux**: `sudo apt install ffmpeg`
+- Python 3.9 o posterior.
+- **ffmpeg**, necesario para convertir audio a MP3 y combinar audio y video en
+  MP4.
+  - **Windows:** `instalar.bat` intenta instalarlo con `winget`; también puedes
+    instalarlo con `winget install --id Gyan.FFmpeg -e`.
+  - **macOS:** `brew install ffmpeg`.
+  - **Ubuntu/Debian:** `sudo apt install ffmpeg`.
 
-## Instalación y uso (Windows)
+## Instalación y uso en Windows
 
-Doble clic en **`instalar.bat`** — revisa/instala Python y ffmpeg si faltan,
-crea el entorno virtual e instala dependencias, todo automático. Luego doble
-clic en **`iniciar.bat`** cada vez que quieras usar la app.
+1. Ejecuta **`instalar.bat`**. Comprueba Python y ffmpeg, intenta instalarlos
+   con `winget` si faltan, crea `venv` e instala las dependencias.
+2. Si acabas de instalar Python o ffmpeg, abre una terminal nueva y vuelve a
+   ejecutar `instalar.bat` para que Windows actualice el `PATH`.
+3. Ejecuta **`iniciar.bat`** cada vez que quieras iniciar la aplicación.
+4. Abre **http://127.0.0.1:5000** en el navegador.
 
-## Instalación manual (cualquier sistema)
-
-```bash
-python3 -m venv venv
-source venv/bin/activate      # En Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python3 run.py
-```
-
-Abre tu navegador en **http://localhost:5000**
-
-## Pruebas
+## Instalación manual
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+python -m venv venv
 ```
 
-## Acceso remoto (desde el celular, fuera de casa)
+Activa el entorno virtual:
 
-La app escucha en toda la red (`0.0.0.0`), no solo en `127.0.0.1`. Para
-usarla desde tu celular estando fuera de casa, instala **Tailscale**
-(https://tailscale.com) en tu PC y en tu teléfono con la misma cuenta — crea
-una red privada entre tus propios dispositivos sin exponer nada al internet
-público. Al iniciar `run.py` verás en la terminal la IP local y un
-recordatorio de usar la IP de Tailscale (empieza con `100.`) desde fuera de
-casa.
+```bash
+# Windows (PowerShell)
+venv\Scripts\Activate.ps1
 
-No se recomienda abrir el puerto en el router directamente hacia internet
-(port forwarding): esta app no tiene login, así que cualquiera que
-encontrara esa dirección podría usarla.
+# macOS / Linux
+source venv/bin/activate
+```
+
+Instala las dependencias e inicia la aplicación:
+
+```bash
+python -m pip install -r requirements.txt
+python run.py
+```
+
+La aplicación muestra en la terminal las direcciones disponibles para la PC y
+la red local.
 
 ## Cómo se usa
 
-1. Pega el enlace de un video de YouTube.
-2. Pulsa **Buscar** — verás título, canal, miniatura y duración.
-3. Elige **MP3** (128/192/320 kbps) o **MP4** (360p–1080p).
-4. Pulsa **Descargar** — el archivo se nombra automáticamente como
-   `Artista - Título.ext` y se guarda donde tu navegador guarda descargas.
+1. Pega el enlace de un video de YouTube y pulsa **Buscar**.
+2. Revisa el título, el canal, la miniatura y la duración.
+3. Elige MP3 (128, 192 o 320 kbps) o MP4 (hasta 360p, 480p, 720p o 1080p).
+4. Pulsa **Descargar**. El archivo se guarda en la carpeta de descargas del
+   navegador.
 
-## Notas técnicas
+## Estructura del proyecto
 
-- Los archivos se descargan a una carpeta temporal del sistema y se borran
-  automáticamente después de enviarse al navegador (`after_this_request`).
-- Si `yt-dlp` deja de funcionar con algunos videos, YouTube probablemente
-  cambió algo en su sitio; actualízalo con `pip install -U yt-dlp`.
+```text
+run.py                       # Punto de entrada usado por los scripts de Windows
+app/
+  __init__.py                # Fábrica de la aplicación Flask
+  config.py                 # Configuración, formatos y calidades
+  routes.py                 # Rutas HTTP
+  services/
+    downloader.py            # Integración con yt-dlp
+    exceptions.py            # Errores del dominio
+    models.py                # Modelos de datos
+  templates/
+  static/
+tests/
+  test_validator.py          # Pruebas del validador de URLs
+instalar.bat                 # Instalación automatizada en Windows
+iniciar.bat                  # Inicio automatizado en Windows
+requirements.txt             # Dependencias de ejecución
+requirements-dev.txt         # Dependencias para pruebas
+```
+
+La aplicación modular que se inicia con `run.py` está dentro de `app/`: las
+rutas delegan las descargas al servicio `YouTubeDownloader`, y la configuración
+se concentra en `app/config.py`. El archivo raíz `app.py` y las carpetas raíz
+`templates/` y `static/` también están presentes en el repositorio, pero los
+scripts de Windows no los usan.
+
+## Pruebas
+
+Con las dependencias de ejecución instaladas, instala las dependencias de
+desarrollo y ejecuta pytest:
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
+## Acceso desde otros dispositivos
+
+El servidor escucha en la red local (`0.0.0.0`). Para acceder desde el celular
+estando fuera de casa, puedes instalar **Tailscale** en la PC y el teléfono y
+usar la IP de Tailscale de la PC (normalmente empieza por `100.`). La terminal
+recuerda que debes usar esa IP para conectarte desde fuera de casa.
+
+No se recomienda redirigir el puerto del router directamente a internet
+(port forwarding): la aplicación no tiene inicio de sesión.
+
+## Notas
+
+- Las descargas se guardan temporalmente y se eliminan después de enviarse al
+  navegador.
+- Si `yt-dlp` deja de funcionar con algunos videos, actualízalo dentro del
+  entorno virtual con `python -m pip install -U yt-dlp`.
